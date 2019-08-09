@@ -23,39 +23,42 @@ class WS281xMatrix(object):
     """Represents the LED Matrix."""
 
     def __init__(
+            self,
             width = 16,          # Number of pixels in width
             height = 16,         # Number of pixels in height
             led_pin = 18,        # PWM pin
             freq = 800000,       # 800khz
             dma_channel = 10,
             invert = False,      # Invert Shifter, should not be needed
-            brightness = 1,      # 1: 100%, 0: 0% everything in between.
+            brightness = 0.5,      # 1: 100%, 0: 0% everything in between.
             led_channel = 0,     # set to '1' for GPIOs 13, 19, 41, 45 or 53
-            led_type = ws.WS2811_STRIP_RBG  # Read the documentation to get your strip type.
+            led_type = None  # Read the documentation to get your strip type.
     ):
         if width < 1 or height < 1:
             raise Exception('Invalid Dimensions')
         if brightness < 0 or brightness > 1:
             raise Exception('Brightness can only be between 0 and 1')
         else:
-            brightness *= 255    # Make this more relevant.
+            brightness = int(brightness * 255)    # Make this more relevant.
         self.width = width
         self.height = height
         self.pixels = width * height
         self.strip = ws.PixelStrip(self.pixels, led_pin, freq, dma_channel, invert,
                                    brightness, led_channel, led_type)
-        self.next_frame(blank_frame((255,255,255)))
+	self.strip.begin()
+        self.next_frame(self.blank_frame((255,255,255)))
 
-    def next_frame(frame):
+    def next_frame(self, frame):
         for i in xrange(len(frame)):
             if i%2 == 1:
                 frame[i] = list(reversed(frame[i]))
-        p = 0
+
+	p = 0
         for i in frame:
-            for j in frame:
-                self.strip(p, frame[i][j])
+            for j in i:
+                self.strip.setPixelColor(p, ws.Color(*j))
                 p += 1
         self.strip.show()
 
-    def blank_frame(color):
+    def blank_frame(self, color):
         return [[color] * self.width] * self.height
