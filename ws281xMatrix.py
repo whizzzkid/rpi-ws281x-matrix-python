@@ -30,7 +30,7 @@ class WS281xMatrix(object):
             freq = 800000,       # 800khz
             dma_channel = 10,
             invert = False,      # Invert Shifter, should not be needed
-            brightness = 0.5,      # 1: 100%, 0: 0% everything in between.
+            brightness = 0.1,      # 1: 100%, 0: 0% everything in between.
             led_channel = 0,     # set to '1' for GPIOs 13, 19, 41, 45 or 53
             led_type = None  # Read the documentation to get your strip type.
     ):
