@@ -6,13 +6,15 @@ Use Case:
     life easier. Adafruit offers a microcontroller library and complains RPi
     does not meet their timing requirements
 Usage:
-  - TBD
+  - See demo.py
+Prereq:
+  - pip install pillow rpi_ws281x
 Contents:
   - Matrix Setup Class.
 """
 
 __author__ = "Nishant Arora"
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 __maintainer__ = "Nishant Arora"
 __email__ = "me@nishantarora.in"
 
@@ -25,17 +27,17 @@ class WS281xMatrix(object):
     """Represents the LED Matrix."""
 
     def __init__(
-            self,
-            width = 16,          # Number of pixels in width
-            height = 16,         # Number of pixels in height
-            led_pin = 18,        # PWM pin
-            freq = 800000,       # 800khz
-            dma_channel = 10,
-            invert = False,      # Invert Shifter, should not be needed
-            brightness = 0.1,    # 1: 100%, 0: 0% everything in between.
-            led_channel = 0,     # set to '1' for GPIOs 13, 19, 41, 45 or 53
-            led_type = None,     # Read the documentation to get your strip type.
-            fps = 10             # frames per second.
+        self,
+        width = 16,          # Number of pixels in width
+        height = 16,         # Number of pixels in height
+        led_pin = 18,        # PWM pin
+        freq = 800000,       # 800khz
+        dma_channel = 10,
+        invert = False,      # Invert Shifter, should not be needed
+        brightness = 0.1,    # 1: 100%, 0: 0% everything in between.
+        led_channel = 0,     # set to '1' for GPIOs 13, 19, 41, 45 or 53
+        led_type = None,     # Read the documentation to get your strip type.
+        fps = 10             # frames per second.
     ):
         if width < 1 or height < 1:
             raise Exception('Invalid Dimensions')
@@ -46,41 +48,65 @@ class WS281xMatrix(object):
         self.width = width
         self.height = height
         self.fps = fps
-        self.wh_ratio = width * 1.0 / height
+        self.wh_ratio = float(width) / height
         self.pixels = width * height
+
+        # Init the strip here.
         self.strip = ws.PixelStrip(self.pixels, led_pin, freq, dma_channel, invert,
                                    brightness, led_channel, led_type)
         self.strip.begin()
+
+        # Maintaining the state of the strip.
         self.power = True
         self.buffer = Queue()
         self.reset()
+
+        # Init the loop so that we can start displaying the buffer.
         self.loop()
 
     def kill(self):
+        """Kills the instance of the the matrix and wipes the display."""
         self.power = False
         self.reset()
 
     def reset(self):
+        """Wipes the display."""
         self.buffer = Queue()
         self.render(self.blank_frame((0,0,0)))
 
     def loop(self):
-	if self.power:
+        """This method is called over and over again to render whatever we have
+           available in the buffer.
+        """
+        if self.power:
             if not self.buffer.empty():
                 frame = self.buffer.get()
                 self.render(frame)
+            # Non Blocking thread.
             Timer(float(1)/self.fps, self.loop).start()
         else:
             self.reset()
 
     def next_frame(self, frame, override = False):
-	self.queue = Queue()
+        """Queues the next frame in the buffer. We can also override the current
+           buffer and display this frame instead.
+
+           Args:
+             frame: RGB representation of the frame.
+             override: optional
+        """
+        if override:
+            self.buffer = Queue()
         for i in xrange(len(frame)):
             if i%2 == 1:
                 frame[i] = list(reversed(frame[i]))
         self.buffer.put(frame)
 
     def render(self, frame):
+        """Renders the supplied frame on the matrix.
+           Args:
+             frame: RGB representation of the frame.
+        """
         p = 0
         for i in frame:
             for j in i:
@@ -89,9 +115,22 @@ class WS281xMatrix(object):
         self.strip.show()
 
     def blank_frame(self, color):
+        """Generates a RGB representation of the frame of a given color.
+           Args:
+             color: RGB Tuple
+           Returns:
+             frame rgb values.
+        """
         return [[color] * self.width] * self.height
 
     def __pad_size(self, size):
+        """Calculates the padding required to render and center the image on
+           the matrix
+           Args:
+             size: of the image to be displayed.
+           Returns:
+             calculated size.
+        """
         (w,h) = size
         if float(w)/h != self.wh_ratio:
             if max(size) == w:
@@ -100,6 +139,12 @@ class WS281xMatrix(object):
         return size
 
     def __rgb_translate(self, im):
+        """Translates a given image object to corresponding RGB frame.
+           Args:
+             im: image object
+           Returns:
+             rgb translated values centered on the given matrix.
+        """
         pad_size = self.__pad_size(im.size)
         pad = Image.new("RGB", pad_size, (0, 0, 0, 0))
         pad.paste(im, (int((pad_size[0]-im.size[0])*0.5),
@@ -118,11 +163,20 @@ class WS281xMatrix(object):
         return frame
 
     def render_image(self, image_path):
+        """Renders an actual png/jpg image on the LED matrix.
+           Args:
+             image_path: resolvable path to the image.
+        """
         im = Image.open(image_path)
         frame = self.__rgb_translate(im)
         self.next_frame(frame)
 
     def render_animation(self, ani_path, loops = 5):
+        """Renders animated images on the matrix.
+           Args:
+             ani_path: resolvable path to the animation
+             loops: how many times to loop the image, 5 by default.
+        """
         im = Image.open(ani_path)
         if not im.is_animated:
             raise Exception("Not an animation")
@@ -136,4 +190,3 @@ class WS281xMatrix(object):
         for loop in xrange(loops):
             for frame in ani:
                 self.next_frame(frame)
-
