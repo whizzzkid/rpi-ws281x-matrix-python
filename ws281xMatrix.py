@@ -16,8 +16,8 @@ __version__ = '0.0.1'
 __maintainer__ = "Nishant Arora"
 __email__ = "me@nishantarora.in"
 
-from PIL import Image
-from queue import Queue
+from PIL import Image, ImageSequence
+from Queue import Queue
 import rpi_ws281x as ws
 from threading import Timer
 
@@ -35,7 +35,7 @@ class WS281xMatrix(object):
             brightness = 0.1,    # 1: 100%, 0: 0% everything in between.
             led_channel = 0,     # set to '1' for GPIOs 13, 19, 41, 45 or 53
             led_type = None,     # Read the documentation to get your strip type.
-            fps = 15             # frames per second.
+            fps = 10             # frames per second.
     ):
         if width < 1 or height < 1:
             raise Exception('Invalid Dimensions')
@@ -46,29 +46,42 @@ class WS281xMatrix(object):
         self.width = width
         self.height = height
         self.fps = fps
-        self.wh_ratio = width / height
+        self.wh_ratio = width * 1.0 / height
         self.pixels = width * height
         self.strip = ws.PixelStrip(self.pixels, led_pin, freq, dma_channel, invert,
                                    brightness, led_channel, led_type)
         self.strip.begin()
+        self.power = True
         self.buffer = Queue()
-        self.next_frame(self.blank_frame((255,255,255)))
+        self.reset()
         self.loop()
 
-    def loop(self):
-        if not self.buffer.empty():
-            frame = self.buffer.get()
-            self.render(frame)
-        Timer(1/self.fps, self.loop).start()
+    def kill(self):
+        self.power = False
+        self.reset()
 
-    def next_frame(self, frame):
+    def reset(self):
+        self.buffer = Queue()
+        self.render(self.blank_frame((0,0,0)))
+
+    def loop(self):
+	if self.power:
+            if not self.buffer.empty():
+                frame = self.buffer.get()
+                self.render(frame)
+            Timer(float(1)/self.fps, self.loop).start()
+        else:
+            self.reset()
+
+    def next_frame(self, frame, override = False):
+	self.queue = Queue()
         for i in xrange(len(frame)):
             if i%2 == 1:
                 frame[i] = list(reversed(frame[i]))
         self.buffer.put(frame)
 
     def render(self, frame):
-	    p = 0
+        p = 0
         for i in frame:
             for j in i:
                 self.strip.setPixelColor(p, ws.Color(*j))
@@ -79,28 +92,29 @@ class WS281xMatrix(object):
         return [[color] * self.width] * self.height
 
     def __pad_size(self, size):
-        w,h = size
-        if w/h != self.wh_ratio:
+        (w,h) = size
+        if float(w)/h != self.wh_ratio:
             if max(size) == w:
-                return (w, w/self.wh_ratio)
-            return (h*self.wh_ratio, h)
+                return (w, int(w/self.wh_ratio))
+            return (int(h*self.wh_ratio), h)
         return size
 
     def __rgb_translate(self, im):
-        pad_size = self.__pad_size(im.size) #square
+        pad_size = self.__pad_size(im.size)
         pad = Image.new("RGB", pad_size)
         pad.paste(im, (int((pad_size[0]-im.size[0])*0.5),
                        int((pad_size[1]-im.size[1])*0.5)))
         new_size = (self.width, self.height)
-        im.thumbnail(new_size)
-        pix = im.load()
+        pad.thumbnail(new_size)
+
+        pix = pad.load()
 
         frame = []
         for i in xrange(new_size[0]):
             row = []
             for j in xrange(new_size[1]):
                 row.append(pix[i,j])
-                frame.append(row)
+            frame.append(row)
         return frame
 
     def render_image(self, image_path):
@@ -115,8 +129,8 @@ class WS281xMatrix(object):
         ani = []
 
         # translate animation.
-        for frame in xrange(im.n_frames):
-            ani.append(self.__rgb_translate(im.seek(frame)))
+        for frame in ImageSequence.Iterator(im):
+            ani.append(self.__rgb_translate(frame))
 
         # Queue the frames
         for loop in xrange(loops):

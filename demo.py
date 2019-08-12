@@ -2,6 +2,7 @@ import os
 import time
 from ws281xMatrix import WS281xMatrix
 
+path = os.path.dirname(__file__)
 im = os.path.join(path, 'sample.png')
 ani = os.path.join(path, 'sample.gif')
 
@@ -12,10 +13,10 @@ def change_color(color):
 
 try:
     while True:
-	    screen.render_image(im)
-	    time.sleep(50)
-        screen.render_animation(ani)
-        time.sleep(50)
+        screen.render_image(im)
+        time.sleep(10)
+        screen.render_animation(ani, 10)
+        time.sleep(10)
         print('Red')
         change_color((255,0,0))
         time.sleep(2)
@@ -26,4 +27,4 @@ try:
         change_color((0,0,255))
         time.sleep(2)
 except KeyboardInterrupt:
-    change_color((0,0,0))
+    screen.kill()
