@@ -13,10 +13,6 @@ def change_color(color):
 
 try:
     while True:
-        screen.render_image(im)
-        time.sleep(10)
-        screen.render_animation(ani, 10)
-        time.sleep(10)
         print('Red')
         change_color((255,0,0))
         time.sleep(2)
@@ -26,5 +22,9 @@ try:
         print('Blue')
         change_color((0,0,255))
         time.sleep(2)
+        screen.render_image(im)
+        time.sleep(10)
+        screen.render_animation(ani)
+        time.sleep(20)
 except KeyboardInterrupt:
     screen.kill()
