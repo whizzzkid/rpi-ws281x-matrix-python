@@ -101,7 +101,7 @@ class WS281xMatrix(object):
 
     def __rgb_translate(self, im):
         pad_size = self.__pad_size(im.size)
-        pad = Image.new("RGB", pad_size)
+        pad = Image.new("RGB", pad_size, (0, 0, 0, 0))
         pad.paste(im, (int((pad_size[0]-im.size[0])*0.5),
                        int((pad_size[1]-im.size[1])*0.5)))
         new_size = (self.width, self.height)
