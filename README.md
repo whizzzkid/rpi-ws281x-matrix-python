@@ -26,6 +26,20 @@ You'll need to install pillow and rpi-ws281x packages (and their dependencies fr
 
 The order is red -> green -> blue -> image -> animation. If this is not the order you see, your strip config is different than the mine.
 
+## Adding to your project
+
+Add it as a submodule.
+
+```
+$ git submodule add https://github.com/whizzzkid/rpi-ws281x-matrix-python matrix
+```
+In your project
+```
+from matrix.ws281xMatrix import WS281xMatrix
+
+screen = WS281xMatrix()
+```
+
 ## API
 
 Once you have:
